@@ -21,44 +21,20 @@ SEED_OBJECTS = [
 
 SEED_MEMORIES = {
     "chair": {
-        "title": "Reading Spot",
-        "narrative_text": (
-            "Every evening, after the world quieted down, Grandpa would sink into "
-            "this worn leather chair by the window. The lamp cast a warm glow as "
-            "he'd read aloud\u2014his voice steady and kind. I'd sit at his feet, "
-            "lost in stories of faraway lands. That chair held more than books; "
-            "it held our unspoken bond."
-        ),
+        "title": "Grandpa's Chair",
+        "memory_text": "Grandpa always sat in this chair after dinner. He'd read to me while I sat on the floor next to him. I remember the way his voice got all soft during the sad parts. The leather's cracked now but it still smells like his pipe tobacco if you lean in close.",
     },
     "book": {
-        "title": "Favorite Stories",
-        "narrative_text": (
-            "Mom's copy of 'The Velveteen Rabbit' was falling apart, pages soft "
-            "from years of bedtime readings. She'd trace the illustrations with "
-            "her finger, and I'd watch her eyes shimmer when the rabbit became "
-            "real. That tattered book taught me love makes things real\u2014even now, "
-            "holding it brings her voice back to me."
-        ),
+        "title": "Mom's Bedtime Book",
+        "memory_text": "Mom read this to me so many times the spine fell apart. She had to hold the pages together. I used to ask her to do the rabbit's voice over and over. She never got tired of it, or at least she never let on if she did.",
     },
     "tv": {
-        "title": "Family Nights",
-        "narrative_text": (
-            "Sunday nights meant the whole family piled onto the couch\u2014knees "
-            "bumping, blankets shared. Dad controlled the remote like a sacred "
-            "artifact. We'd laugh at the same jokes, groan at the same "
-            "cliffhangers. Those glowing evenings weren't about what we watched; "
-            "they were the last time we were all together, simply happy."
-        ),
+        "title": "Sunday Movies",
+        "memory_text": "We'd all cram onto the couch on Sunday nights. Dad would make popcorn with too much butter, the way we liked it. Nobody was allowed to talk during the movie but we'd all look at each other during the funny parts. I miss that.",
     },
     "laptop": {
-        "title": "Letters & Photos",
-        "narrative_text": (
-            "After she moved overseas, this laptop became our bridge. Late-night "
-            "video calls where we'd both pretend the distance didn't ache. She'd "
-            "email photos of her tiny apartment, and I'd send back pictures of the "
-            "dog she missed. Every notification was a small proof: miles couldn't "
-            "break what we built."
-        ),
+        "title": "Video Calls with Sarah",
+        "memory_text": "When Sarah moved away, we started doing video calls every week on this laptop. Sometimes we'd just sit there not saying much. She'd show me her apartment, I'd show her the dog. It helped, knowing she was right there on the screen even though she was so far away.",
     },
 }
 
