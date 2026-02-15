@@ -6,8 +6,12 @@
 // ============================================
 // Configuration
 // ============================================
-const ELEVENLABS_API_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY;
-const ELEVENLABS_VOICE_ID = import.meta.env.VITE_ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL'; // Default: Sarah (warm, clear)
+const ELEVENLABS_API_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY || '';
+const ELEVENLABS_VOICE_ID = import.meta.env.VITE_ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL';
+
+// Debug mode - set to true to see console logs
+const DEBUG = true;
+const log = (...args) => DEBUG && console.log('[VoiceService]', ...args);
 
 // Check if speech synthesis is available
 const isSpeechSupported = () => 
@@ -17,16 +21,53 @@ const isSpeechSupported = () =>
 let currentAudio = null;
 let currentUtterance = null;
 let speakingState = false;
+let voicesLoaded = false;
+
+// ============================================
+// Initialize voices (they load async in some browsers)
+// ============================================
+function initVoices() {
+  if (!isSpeechSupported()) return;
+  
+  const loadVoices = () => {
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      voicesLoaded = true;
+      log('Voices loaded:', voices.length);
+    }
+  };
+  
+  // Load immediately if available
+  loadVoices();
+  
+  // Also listen for the voiceschanged event (Chrome needs this)
+  if (window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }
+}
+
+// Initialize on load
+if (typeof window !== 'undefined') {
+  initVoices();
+  // Also try after a short delay (some browsers need this)
+  setTimeout(initVoices, 100);
+}
 
 // ============================================
 // ElevenLabs TTS (High-quality voice)
 // ============================================
 async function playWithElevenLabs(text) {
-  if (!ELEVENLABS_API_KEY) return false;
+  if (!ELEVENLABS_API_KEY) {
+    log('ElevenLabs: No API key configured');
+    return false;
+  }
+
+  log('ElevenLabs: Attempting to play with voice', ELEVENLABS_VOICE_ID);
 
   try {
+    // Use non-streaming endpoint (more reliable)
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}/stream`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
       {
         method: 'POST',
         headers: {
@@ -35,9 +76,9 @@ async function playWithElevenLabs(text) {
         },
         body: JSON.stringify({
           text,
-          model_id: 'eleven_monolingual_v1',
+          model_id: 'eleven_turbo_v2_5',
           voice_settings: {
-            stability: 0.75,
+            stability: 0.5,
             similarity_boost: 0.75,
           },
         }),
@@ -45,63 +86,104 @@ async function playWithElevenLabs(text) {
     );
 
     if (!response.ok) {
-      console.warn('VoiceService: ElevenLabs request failed', response.status);
+      const errorText = await response.text();
+      log('ElevenLabs: Request failed with status', response.status, errorText);
       return false;
     }
 
     const audioBlob = await response.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
     
+    log('ElevenLabs: Audio blob received, playing...');
+    
     // Stop any existing audio
     stop();
     
     currentAudio = new Audio(audioUrl);
-    currentAudio.onplay = () => { speakingState = true; };
+    currentAudio.onplay = () => { 
+      speakingState = true; 
+      log('ElevenLabs: Playing');
+    };
     currentAudio.onended = () => { 
       speakingState = false; 
       currentAudio = null;
       URL.revokeObjectURL(audioUrl);
+      log('ElevenLabs: Finished');
     };
-    currentAudio.onerror = () => { 
+    currentAudio.onerror = (e) => { 
       speakingState = false; 
       currentAudio = null;
+      log('ElevenLabs: Audio error', e);
     };
 
     await currentAudio.play();
     return true;
   } catch (err) {
-    console.warn('VoiceService: ElevenLabs error', err);
+    log('ElevenLabs: Error', err.message);
     return false;
   }
 }
 
 // ============================================
-// Web Speech API (Fallback)
+// Web Speech API (Fallback - always available)
 // ============================================
 function playWithWebSpeech(text, options = {}) {
-  if (!isSpeechSupported()) return false;
+  if (!isSpeechSupported()) {
+    log('WebSpeech: Not supported in this browser');
+    return false;
+  }
+
+  log('WebSpeech: Playing text:', text.substring(0, 50) + '...');
+
+  // Cancel any ongoing speech first
+  window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = options.rate ?? 0.9;
   utterance.pitch = options.pitch ?? 1;
   utterance.volume = options.volume ?? 1;
 
-  // Try to use a natural voice if available
+  // Get available voices
   const voices = window.speechSynthesis.getVoices();
-  const preferredVoice = voices.find(v => 
-    v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Samantha'))
-  ) || voices.find(v => v.lang.startsWith('en'));
+  log('WebSpeech: Available voices:', voices.length);
   
-  if (preferredVoice) {
-    utterance.voice = preferredVoice;
+  if (voices.length > 0) {
+    // Try to find a good English voice
+    const preferredVoice = 
+      voices.find(v => v.name.includes('Samantha')) ||
+      voices.find(v => v.name.includes('Google') && v.lang.startsWith('en')) ||
+      voices.find(v => v.name.includes('Natural') && v.lang.startsWith('en')) ||
+      voices.find(v => v.lang === 'en-US') ||
+      voices.find(v => v.lang.startsWith('en'));
+    
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+      log('WebSpeech: Using voice:', preferredVoice.name);
+    }
   }
 
-  utterance.onstart = () => { speakingState = true; };
-  utterance.onend = () => { speakingState = false; currentUtterance = null; };
-  utterance.onerror = () => { speakingState = false; currentUtterance = null; };
+  utterance.onstart = () => { 
+    speakingState = true; 
+    log('WebSpeech: Started speaking');
+  };
+  utterance.onend = () => { 
+    speakingState = false; 
+    currentUtterance = null;
+    log('WebSpeech: Finished speaking');
+  };
+  utterance.onerror = (e) => { 
+    speakingState = false; 
+    currentUtterance = null;
+    log('WebSpeech: Error', e.error);
+  };
 
   currentUtterance = utterance;
-  window.speechSynthesis.speak(utterance);
+  
+  // Small delay to ensure voices are loaded (Chrome fix)
+  setTimeout(() => {
+    window.speechSynthesis.speak(utterance);
+  }, 10);
+  
   return true;
 }
 
@@ -111,19 +193,23 @@ function playWithWebSpeech(text, options = {}) {
 
 /**
  * Play memory text as speech
- * Uses ElevenLabs if API key is set, otherwise falls back to Web Speech
- * @param {string} text - The text to speak
- * @param {object} options - Optional config { rate, pitch, voice, forceWebSpeech }
- * @returns {Promise<boolean>} - true if started, false if not supported
+ * Uses ElevenLabs if API key is set and working, otherwise falls back to Web Speech
  */
 export async function playMemory(text, options = {}) {
+  log('playMemory called with text length:', text.length);
+  
   // Stop any current speech
   stop();
 
   // Try ElevenLabs first (unless forced to use Web Speech)
   if (!options.forceWebSpeech && ELEVENLABS_API_KEY) {
+    log('Trying ElevenLabs first...');
     const success = await playWithElevenLabs(text);
-    if (success) return true;
+    if (success) {
+      log('ElevenLabs succeeded');
+      return true;
+    }
+    log('ElevenLabs failed, falling back to Web Speech');
   }
 
   // Fall back to Web Speech
@@ -134,6 +220,8 @@ export async function playMemory(text, options = {}) {
  * Stop current speech
  */
 export function stop() {
+  log('stop() called');
+  
   // Stop ElevenLabs audio
   if (currentAudio) {
     currentAudio.pause();
@@ -152,7 +240,6 @@ export function stop() {
 
 /**
  * Check if currently speaking
- * @returns {boolean}
  */
 export function isSpeaking() {
   if (currentAudio && !currentAudio.paused) return true;
@@ -162,18 +249,16 @@ export function isSpeaking() {
 
 /**
  * Check if voice is supported (at least Web Speech)
- * @returns {boolean}
  */
 export function isSupported() {
-  return isSpeechSupported() || !!ELEVENLABS_API_KEY;
+  return isSpeechSupported();
 }
 
 /**
- * Check if ElevenLabs is configured
- * @returns {boolean}
+ * Check if ElevenLabs is configured and has a valid key
  */
 export function hasElevenLabs() {
-  return !!ELEVENLABS_API_KEY;
+  return !!ELEVENLABS_API_KEY && ELEVENLABS_API_KEY.length > 10;
 }
 
 // ============================================
@@ -185,23 +270,21 @@ const EXPANSION_TEMPLATES = [
   "Every time we see this, it brings back the warmth of those days. The laughter, the conversations, the feeling of being truly connected to the people we love.",
   "There's something magical about how ordinary things become extraordinary through the memories we attach to them. This is one of those treasures.",
   "The family often talks about this when we gather together. It's amazing how one simple thing can hold so much meaning and bring back so many feelings.",
+  "Sometimes the simplest objects carry the deepest memories. This one takes us back to a time when everything felt safe and the world was full of wonder.",
 ];
 
 /**
  * Expand a memory with additional context
- * Uses local templates by default, optional LLM if configured
- * @param {string} memoryText - Original memory text
- * @param {object} options - { useLLM: boolean }
- * @returns {Promise<string>} - Expanded memory text
  */
 export async function expandMemory(memoryText, options = {}) {
-  const useLLM = options.useLLM && import.meta.env.VITE_OPENAI_API_KEY;
+  const openaiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  const useLLM = options.useLLM && openaiKey;
   
   if (useLLM) {
     try {
-      return await expandWithLLM(memoryText);
+      return await expandWithLLM(memoryText, openaiKey);
     } catch (err) {
-      console.warn('VoiceService: LLM expansion failed, using fallback', err);
+      log('LLM expansion failed, using fallback:', err.message);
     }
   }
   
@@ -213,10 +296,7 @@ function expandLocally(memoryText) {
   return `${memoryText}\n\n${template}`;
 }
 
-async function expandWithLLM(memoryText) {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-  if (!apiKey) throw new Error('No API key');
-
+async function expandWithLLM(memoryText, apiKey) {
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -244,9 +324,7 @@ async function expandWithLLM(memoryText) {
   if (!response.ok) throw new Error('API request failed');
   
   const data = await response.json();
-  const expansion = data.choices?.[0]?.message?.content?.trim();
-  
-  return expansion || expandLocally(memoryText);
+  return data.choices?.[0]?.message?.content?.trim() || expandLocally(memoryText);
 }
 
 // ============================================
@@ -261,6 +339,10 @@ if (typeof window !== 'undefined') {
     hasElevenLabs,
     expandMemory,
   };
+  
+  log('VoiceService registered on window');
+  log('ElevenLabs configured:', hasElevenLabs());
+  log('Web Speech supported:', isSpeechSupported());
 }
 
 export default {
