@@ -184,27 +184,70 @@ export default function MemoryUpload({ onClose, onSaved }) {
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (!finalLabel || !title.trim() || !memoryText.trim()) {
-      setStatus({ type: "error", msg: "Please fill in all the fields" });
+    // Require object label
+    if (!finalLabel) {
+      setStatus({ type: "error", msg: "Please select an object" });
+      return;
+    }
+
+    // Either files OR manual text is required
+    const hasFiles = files.length > 0;
+    const hasManualText = memoryText.trim().length > 0;
+    
+    if (!hasFiles && !hasManualText) {
+      setStatus({ type: "error", msg: "Please add files or write a memory" });
       return;
     }
 
     setSaving(true);
-    setStatus({ type: "info", msg: "Saving your memory..." });
 
     try {
-      const res = await fetch(`${API_BASE}/memory`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          object_label: finalLabel,
-          title: title.trim(),
-          memory_text: memoryText.trim(),
-          audio_url: null,
-        }),
-      });
+      let res;
 
-      if (!res.ok) throw new Error(`Could not save`);
+      if (hasFiles) {
+        // Upload files and let AI generate memory
+        setStatus({ type: "info", msg: "Uploading files and creating memory..." });
+        
+        const formData = new FormData();
+        formData.append("object_label", finalLabel);
+        if (title.trim()) {
+          formData.append("title", title.trim());
+        }
+        
+        for (const f of files) {
+          formData.append("files", f.file);
+        }
+
+        res = await fetch(`${API_BASE}/upload/memory`, {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        // Manual text entry (legacy flow)
+        if (!title.trim()) {
+          setStatus({ type: "error", msg: "Please give your memory a title" });
+          setSaving(false);
+          return;
+        }
+        
+        setStatus({ type: "info", msg: "Saving your memory..." });
+        
+        res = await fetch(`${API_BASE}/memory`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            object_label: finalLabel,
+            title: title.trim(),
+            memory_text: memoryText.trim(),
+            audio_url: null,
+          }),
+        });
+      }
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Could not save");
+      }
 
       setStatus({ type: "success", msg: "Memory saved!" });
       
@@ -213,11 +256,11 @@ export default function MemoryUpload({ onClose, onSaved }) {
         onClose?.();
       }, 1200);
     } catch (err) {
-      setStatus({ type: "error", msg: "Could not save. Please try again." });
+      setStatus({ type: "error", msg: err.message || "Could not save. Please try again." });
     } finally {
       setSaving(false);
     }
-  }, [finalLabel, title, memoryText, onSaved, onClose]);
+  }, [finalLabel, title, memoryText, files, onSaved, onClose]);
 
   const IconComponent = ({ name, className }) => {
     const Icon = Icons[name];
@@ -321,21 +364,12 @@ export default function MemoryUpload({ onClose, onSaved }) {
               />
             </div>
 
-            {/* Story */}
+            {/* File Upload - Primary option */}
             <div className="upload-panel__field">
-              <label className="upload-panel__label">Tell the story</label>
-              <textarea
-                className="upload-panel__textarea"
-                value={memoryText}
-                onChange={(e) => setMemoryText(e.target.value)}
-                placeholder="Who was there? What happened? What made it special?"
-                rows={4}
-              />
-            </div>
-
-            {/* File Upload */}
-            <div className="upload-panel__field">
-              <label className="upload-panel__label">Add photos, videos, or recordings</label>
+              <label className="upload-panel__label">
+                Add photos, documents, or recordings
+                <span className="upload-panel__label-hint"> (AI will create the memory)</span>
+              </label>
               
               <div className="upload-panel__dropzone" onClick={() => fileInputRef.current?.click()}>
                 <IconComponent name="upload" className="upload-panel__dropzone-icon" />
@@ -381,6 +415,27 @@ export default function MemoryUpload({ onClose, onSaved }) {
               )}
             </div>
 
+            {/* Divider when no files */}
+            {files.length === 0 && (
+              <div className="upload-panel__divider">
+                <span>or write it yourself</span>
+              </div>
+            )}
+
+            {/* Story - Optional when files are provided */}
+            {files.length === 0 && (
+              <div className="upload-panel__field">
+                <label className="upload-panel__label">Tell the story</label>
+                <textarea
+                  className="upload-panel__textarea"
+                  value={memoryText}
+                  onChange={(e) => setMemoryText(e.target.value)}
+                  placeholder="Who was there? What happened? What made it special?"
+                  rows={4}
+                />
+              </div>
+            )}
+
             {/* Status */}
             {status && (
               <div className={`upload-panel__status upload-panel__status--${status.type}`}>
@@ -396,9 +451,9 @@ export default function MemoryUpload({ onClose, onSaved }) {
               <button
                 className="upload-panel__save-btn"
                 onClick={handleSave}
-                disabled={saving || !title.trim() || !memoryText.trim()}
+                disabled={saving || (files.length === 0 && (!title.trim() || !memoryText.trim()))}
               >
-                {saving ? "Saving..." : "Save Memory"}
+                {saving ? (files.length > 0 ? "Creating..." : "Saving...") : "Save Memory"}
               </button>
             </div>
           </div>

@@ -705,6 +705,29 @@ body::before {
   color: var(--c-text);
 }
 
+.upload-panel__label-hint {
+  font-weight: 400;
+  font-size: 0.9rem;
+  color: var(--c-text-muted);
+}
+
+.upload-panel__divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 8px 0;
+  color: var(--c-text-muted);
+  font-size: 0.9rem;
+}
+
+.upload-panel__divider::before,
+.upload-panel__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--c-border);
+}
+
 .upload-panel__input,
 .upload-panel__textarea {
   width: 100%;

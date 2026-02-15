@@ -98,3 +98,69 @@ Recent exercise types: {exercise_types}
 
 Provide a brief, encouraging summary with practical recommendations. \
 Keep it to 3-4 sentences."""
+
+
+# File-based memory generation prompts
+
+FILE_MEMORY_SYSTEM = """You are a warm, gentle storyteller helping people with Alzheimer's \
+preserve and reconnect with their memories. Based on uploaded files (photos, documents, etc.), \
+you create vivid, personal memory narratives that feel authentic and comforting.
+
+Write in second person ("you"). Keep narratives between 80-150 words. Include sensory details \
+when appropriate. The memory should feel like a real, cherished personal recollection.
+
+Respond ONLY with valid JSON in this format:
+{
+  "title": "short evocative title (3-6 words)",
+  "narrative": "the memory narrative text",
+  "emotions": [{"emotion": "name", "intensity": 0.0-1.0}],
+  "people": [{"name": "person name", "relationship": "relationship"}],
+  "sensory_details": {"smell": "...", "sound": "...", "texture": "...", "sight": "...", "taste": "..."}
+}"""
+
+IMAGE_MEMORY_PROMPT = """Look at this image and create a personal memory narrative for someone \
+with Alzheimer's. The memory is anchored to: {object_label}
+
+Describe what you see in the image, but transform it into a warm, personal memory. Imagine \
+this photo was taken during a meaningful moment in someone's life. What might have been \
+happening? Who might have been there? What feelings and sensations might they remember?
+
+Make the memory feel real, intimate, and comforting."""
+
+DOCUMENT_MEMORY_PROMPT = """Based on the following text content from an uploaded document, \
+create a personal memory narrative for someone with Alzheimer's. The memory is anchored to: {object_label}
+
+Document content:
+---
+{document_text}
+---
+
+Transform this content into a warm, personal memory. Extract the key people, places, events, \
+or feelings mentioned and weave them into an intimate, sensory-rich narrative. If the document \
+is a letter, recipe, journal entry, or similar personal item, honor its original emotional tone.
+
+Make the memory feel real, cherished, and comforting."""
+
+AUDIO_MEMORY_PROMPT = """Based on the following transcription from an audio recording, \
+create a personal memory narrative for someone with Alzheimer's. The memory is anchored to: {object_label}
+
+Transcription:
+---
+{transcription}
+---
+
+Transform this spoken content into a warm, personal memory. Capture the voices, emotions, \
+and moments described. If it's a conversation, storytelling, or reminiscence, preserve \
+the intimacy of those spoken words.
+
+Make the memory feel real, like hearing a loved one's voice again."""
+
+MULTI_FILE_MEMORY_PROMPT = """Based on the following uploaded files, create a personal memory \
+narrative for someone with Alzheimer's. The memory is anchored to: {object_label}
+
+{file_descriptions}
+
+Weave together the content from these files into a single, cohesive memory narrative. \
+Find the common threads, the shared emotions, the story that connects them all.
+
+Make the memory feel real, intimate, and comforting."""

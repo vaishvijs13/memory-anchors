@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     ELEVENLABS_API_KEY: str = ""
     ELEVENLABS_VOICE_ID: str = "EXAVITQu4vr4xnSDxMaL"
 
+    # Supabase Storage
+    SUPABASE_URL: str = ""
+    SUPABASE_SERVICE_KEY: str = ""
+    SUPABASE_STORAGE_BUCKET: str = "memory-files"
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 
