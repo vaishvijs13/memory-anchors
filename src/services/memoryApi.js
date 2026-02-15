@@ -37,8 +37,10 @@ export async function fetchMemory(objectLabel) {
     });
     if (res.ok) {
       const data = await res.json();
-      if (data && data.title && data.text) {
-        return { title: data.title, text: data.text };
+      // Backend returns memory_text, normalize to text
+      const text = data.memory_text || data.text;
+      if (data && data.title && text) {
+        return { title: data.title, text, audioUrl: data.audio_url || null };
       }
     }
   } catch {
