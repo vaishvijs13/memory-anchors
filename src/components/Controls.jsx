@@ -1,15 +1,7 @@
 import { SUPPORTED_OBJECTS } from "../services/detection";
 
 /**
- * Demo Mode controls: a toggle and a dropdown to manually trigger detections.
- *
- * Props:
- *  - demoMode: boolean
- *  - onToggleDemo: () => void
- *  - selectedLabel: string
- *  - onSelectLabel: (label) => void
- *  - onTrigger: () => void
- *  - modelReady: boolean
+ * Bottom controls: mode toggle, demo panel, and upload button.
  */
 export default function Controls({
   demoMode,
@@ -18,6 +10,7 @@ export default function Controls({
   onSelectLabel,
   onTrigger,
   modelReady,
+  onUpload,
 }) {
   return (
     <div className="controls">
@@ -32,14 +25,20 @@ export default function Controls({
           <span className="controls__toggle-track">
             <span className="controls__toggle-thumb" />
           </span>
-          <span className="controls__toggle-text">Demo Mode</span>
+          <span className="controls__toggle-text">DEMO_MODE</span>
         </label>
 
-        {!demoMode && (
-          <span className={`controls__status ${modelReady ? "ready" : "loading"}`}>
-            {modelReady ? "● Model Ready" : "◌ Loading model…"}
-          </span>
-        )}
+        <div className="controls__right">
+          {!demoMode && (
+            <span className={`controls__status ${modelReady ? "ready" : "loading"}`}>
+              {modelReady ? "◉ MDL_ACTIVE" : "◌ MDL_LOADING"}
+            </span>
+          )}
+          
+          <button className="controls__upload-btn" onClick={onUpload}>
+            + ADD_MEMORY
+          </button>
+        </div>
       </div>
 
       {demoMode && (
@@ -51,12 +50,12 @@ export default function Controls({
           >
             {SUPPORTED_OBJECTS.map((obj) => (
               <option key={obj} value={obj}>
-                {obj.charAt(0).toUpperCase() + obj.slice(1)}
+                {obj.toUpperCase()}
               </option>
             ))}
           </select>
           <button className="controls__trigger" onClick={onTrigger}>
-            Trigger Memory
+            [ TRIGGER ]
           </button>
         </div>
       )}

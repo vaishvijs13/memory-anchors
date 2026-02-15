@@ -2,14 +2,14 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import CameraView from "./components/CameraView";
 import DetectionOverlay from "./components/DetectionOverlay";
 import MemoryCard from "./components/MemoryCard";
+import MemoryUpload from "./components/MemoryUpload";
+import SystemHUD from "./components/SystemHUD";
 import Controls from "./components/Controls";
 import { loadModel, detect, SUPPORTED_OBJECTS } from "./services/detection";
 import { fetchMemory } from "./services/memoryApi";
 import "./App.css";
 
-/** How long a label must be stably detected before we surface the memory */
 const STABLE_THRESHOLD_MS = 700;
-/** Minimum time between detection runs */
 const DETECT_INTERVAL_MS = 300;
 
 export default function App() {
@@ -23,10 +23,11 @@ export default function App() {
   const [demoMode, setDemoMode] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState(SUPPORTED_OBJECTS[0]);
   const [detections, setDetections] = useState([]);
-  const [activeMemory, setActiveMemory] = useState(null); // { label, memory, position }
+  const [activeMemory, setActiveMemory] = useState(null);
   const [videoSize, setVideoSize] = useState({ w: 0, h: 0 });
+  const [showUpload, setShowUpload] = useState(false);
 
-  // ───────────────── Load model on mount ─────────────────
+  // Load model on mount
   useEffect(() => {
     let cancelled = false;
     loadModel()
@@ -34,14 +35,12 @@ export default function App() {
         if (!cancelled) setModelReady(true);
       })
       .catch(() => {
-        console.warn("Model failed to load — use Demo Mode as fallback");
+        console.warn("[SYS] Model failed to load — use Demo Mode");
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
-  // ───────────────── Detection loop ─────────────────
+  // Detection loop
   useEffect(() => {
     if (demoMode || !modelReady || !cameraReady) return;
 
@@ -53,7 +52,6 @@ export default function App() {
 
       const video = webcamRef.current?.video;
       if (video && video.readyState >= 2) {
-        // Keep videoSize in sync
         if (video.videoWidth && video.videoHeight) {
           setVideoSize({ w: video.videoWidth, h: video.videoHeight });
         }
@@ -62,7 +60,6 @@ export default function App() {
           const results = await detect(video);
           setDetections(results);
 
-          // Stability logic: pick the highest-confidence supported detection
           const best = results.length > 0 ? results[0] : null;
           const bestLabel = best?.label ?? null;
 
@@ -77,7 +74,7 @@ export default function App() {
             }
           }
         } catch {
-          // detection error — skip frame
+          // detection error
         }
       }
 
@@ -95,19 +92,15 @@ export default function App() {
       clearTimeout(animId);
       clearTimeout(stableTimerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demoMode, modelReady, cameraReady]);
 
-  // ───────────────── Trigger memory (shared by detection + demo mode) ─────
   const triggerMemory = useCallback(async (label, bbox) => {
     const memory = await fetchMemory(label);
     if (!memory) return;
 
-    // Compute card position relative to viewport (rough)
     let position = { top: 90, left: 24 };
     if (bbox) {
       const [x, y] = bbox;
-      // Place card offset from bbox — scaled from video to viewport
       const video = webcamRef.current?.video;
       if (video) {
         const scaleX = window.innerWidth / (video.videoWidth || 1);
@@ -122,7 +115,6 @@ export default function App() {
     setActiveMemory({ label, memory, position });
   }, []);
 
-  // ───────────────── Demo mode trigger ─────
   const handleDemoTrigger = useCallback(() => {
     triggerMemory(selectedLabel, null);
   }, [selectedLabel, triggerMemory]);
@@ -141,17 +133,20 @@ export default function App() {
 
   return (
     <div className="app">
-      {/* Camera */}
       <CameraView ref={webcamRef} onReady={() => setCameraReady(true)} />
 
-      {/* Detection overlay */}
       <DetectionOverlay
         detections={detections}
         videoWidth={videoSize.w}
         videoHeight={videoSize.h}
       />
 
-      {/* Memory card */}
+      <SystemHUD
+        modelReady={modelReady}
+        cameraReady={cameraReady}
+        detectionCount={detections.length}
+      />
+
       {activeMemory && (
         <MemoryCard
           label={activeMemory.label}
@@ -161,13 +156,25 @@ export default function App() {
         />
       )}
 
-      {/* Top bar */}
+      {showUpload && (
+        <MemoryUpload
+          onClose={() => setShowUpload(false)}
+          onSaved={() => setShowUpload(false)}
+        />
+      )}
+
       <header className="top-bar">
-        <h1 className="top-bar__title">Memory Anchors</h1>
-        <p className="top-bar__tagline">Memories attached to the real world.</p>
+        <div className="top-bar__brand">
+          <svg className="top-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+          </svg>
+          <h1 className="top-bar__title">Memory Anchors</h1>
+        </div>
+        <p className="top-bar__tagline">Spatial Memory Interface</p>
       </header>
 
-      {/* Controls (bottom) */}
       <Controls
         demoMode={demoMode}
         onToggleDemo={handleToggleDemo}
@@ -175,6 +182,7 @@ export default function App() {
         onSelectLabel={setSelectedLabel}
         onTrigger={handleDemoTrigger}
         modelReady={modelReady}
+        onUpload={() => setShowUpload(true)}
       />
     </div>
   );

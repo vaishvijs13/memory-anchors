@@ -100,14 +100,19 @@ export default function MemoryCard({ memory, label, position, onClose }) {
   return (
     <div className="memory-card" style={style}>
       <div className="memory-card__header">
-        <span className="memory-card__icon">✨</span>
+        <svg className="memory-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M20 7h-4V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/>
+          <circle cx="12" cy="13" r="3"/>
+        </svg>
         <span className="memory-card__label">{label}</span>
         <button
           className="memory-card__close"
           onClick={onClose}
           aria-label="Close"
         >
-          ✕
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
         </button>
       </div>
       
